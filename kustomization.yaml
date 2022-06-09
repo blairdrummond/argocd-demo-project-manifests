@@ -1,0 +1,60 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# This keeps apps seperated at the global ArgoCD level
+namePrefix: autobots-
+  
+# But any team specific metadata here
+commonLabels:
+  owner: autobots
+
+# This is where you deploy stuff from
+resources:
+# - demo-app
+- postgres/
+
+# This sets the destination namespace and project
+# These are *validated* using a validating admission webhook.
+patches:
+# All apps scoped to a specific namespace/project
+- patch: |-
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: not-used
+    spec:
+      project: autobots
+      destination:
+        namespace: autobots
+  target:
+    kind: Application
+
+# Dev specific patches: Enable autosync
+- patch: |-
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: not-used
+    spec:
+      destination:
+        cluster: k3d-cluster-dev
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+  target:
+    kind: Application
+    labelSelector: "cluster=dev"
+
+# Prod specific patches
+- patch: |-
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: not-used
+    spec:
+      destination:
+        cluster: k3d-cluster-prod
+  target:
+    kind: Application
+    labelSelector: "cluster=prod"
